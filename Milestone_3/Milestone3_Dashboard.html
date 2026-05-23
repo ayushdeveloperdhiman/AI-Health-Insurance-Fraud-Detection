@@ -1,0 +1,2385 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>EmpowerTech | Fraud Detection Dashboard</title>
+
+    <!-- Chart.js for analytics charts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <!-- D3.js for SHAP waterfall & network graph -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <!-- Axios for API calls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.7/axios.min.js"></script>
+
+    <style>
+      /* ── DESIGN SYSTEM ── */
+      :root {
+        --navy: #0f1c2e;
+        --navy-mid: #162436;
+        --navy-light: #1e3450;
+        --blue: #2563eb;
+        --blue-light: #3b82f6;
+        --teal: #0d9488;
+        --gold: #f59e0b;
+        --red: #ef4444;
+        --amber: #f97316;
+        --green: #10b981;
+        --white: #f8fafc;
+        --gray-100: #e2e8f0;
+        --gray-400: #94a3b8;
+        --gray-600: #475569;
+        --font-main: "Segoe UI", system-ui, sans-serif;
+        --font-mono: "Consolas", "Courier New", monospace;
+        --radius: 8px;
+        --shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: var(--font-main);
+        background: var(--navy);
+        color: var(--white);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* ── LAYOUT ── */
+      #app {
+        display: flex;
+        min-height: 100vh;
+      }
+      #sidebar {
+        width: 230px;
+        background: var(--navy-mid);
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 100;
+      }
+      #main {
+        margin-left: 230px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      #topbar {
+        height: 60px;
+        background: var(--navy-mid);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        position: sticky;
+        top: 0;
+        z-index: 90;
+      }
+      #content {
+        padding: 24px;
+        flex: 1;
+      }
+
+      /* ── SIDEBAR ── */
+      .sidebar-logo {
+        padding: 20px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .sidebar-logo h1 {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--white);
+        letter-spacing: 0.5px;
+      }
+      .sidebar-logo span {
+        font-size: 11px;
+        color: var(--gray-400);
+        display: block;
+        margin-top: 2px;
+      }
+      .sidebar-badge {
+        background: var(--blue);
+        color: #fff;
+        font-size: 9px;
+        padding: 1px 6px;
+        border-radius: 20px;
+        margin-left: 6px;
+        font-weight: 600;
+      }
+      .nav-section {
+        padding: 16px 12px 6px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--gray-600);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 18px;
+        cursor: pointer;
+        border-radius: 0;
+        transition: all 0.15s;
+        font-size: 13.5px;
+        color: var(--gray-400);
+        border-left: 3px solid transparent;
+      }
+      .nav-item:hover {
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--white);
+      }
+      .nav-item.active {
+        background: rgba(37, 99, 235, 0.15);
+        color: var(--blue-light);
+        border-left-color: var(--blue-light);
+      }
+      .nav-icon {
+        font-size: 16px;
+        width: 20px;
+        text-align: center;
+      }
+      .sidebar-footer {
+        margin-top: auto;
+        padding: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .user-pill {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--blue);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .user-info small {
+        font-size: 10px;
+        color: var(--gray-400);
+        display: block;
+      }
+      .user-info span {
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      /* ── TOPBAR ── */
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .topbar-title {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .ws-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--gray-400);
+      }
+      .ws-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--gray-600);
+        animation: none;
+      }
+      .ws-dot.live {
+        background: var(--green);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .btn {
+        padding: 7px 14px;
+        border-radius: var(--radius);
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.15s;
+      }
+      .btn-primary {
+        background: var(--blue);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: var(--blue-light);
+      }
+      .btn-danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--red);
+        border: 1px solid var(--red);
+      }
+      .btn-outline {
+        background: transparent;
+        color: var(--gray-400);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .btn-sm {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+
+      /* ── STAT CARDS ── */
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .stat-card {
+        background: var(--navy-light);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .stat-icon {
+        font-size: 28px;
+        flex-shrink: 0;
+      }
+      .stat-val {
+        font-size: 26px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .stat-label {
+        font-size: 12px;
+        color: var(--gray-400);
+        margin-top: 3px;
+      }
+      .stat-change {
+        font-size: 11px;
+        margin-top: 4px;
+      }
+      .up {
+        color: var(--red);
+      }
+      .down {
+        color: var(--green);
+      }
+
+      /* ── CARDS ── */
+      .card {
+        background: var(--navy-light);
+        border-radius: var(--radius);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        overflow: hidden;
+      }
+      .card-header {
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .card-title {
+        font-size: 13.5px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card-body {
+        padding: 16px 18px;
+      }
+
+      /* ── ALERTS FEED ── */
+      .alert-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 480px;
+        overflow-y: auto;
+      }
+      .alert-row {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        cursor: pointer;
+        transition: all 0.15s;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        animation: slideIn 0.3s ease;
+      }
+      .alert-row:hover {
+        background: rgba(37, 99, 235, 0.1);
+        border-color: rgba(37, 99, 235, 0.3);
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .risk-badge {
+        padding: 3px 8px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+      .risk-HIGH {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--red);
+        border: 1px solid var(--red);
+      }
+      .risk-MEDIUM {
+        background: rgba(249, 115, 22, 0.2);
+        color: var(--amber);
+        border: 1px solid var(--amber);
+      }
+      .risk-LOW {
+        background: rgba(16, 185, 129, 0.2);
+        color: var(--green);
+        border: 1px solid var(--green);
+      }
+      .alert-score {
+        font-size: 20px;
+        font-weight: 700;
+        min-width: 48px;
+        text-align: center;
+      }
+      .alert-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .alert-id {
+        font-size: 13px;
+        font-weight: 600;
+        font-family: var(--font-mono);
+      }
+      .alert-meta {
+        font-size: 11px;
+        color: var(--gray-400);
+        margin-top: 2px;
+      }
+      .status-chip {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .status-New {
+        background: rgba(37, 99, 235, 0.2);
+        color: var(--blue-light);
+      }
+      .status-In.Review {
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--gold);
+      }
+      .status-Confirmed {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--red);
+      }
+      .status-False {
+        background: rgba(16, 185, 129, 0.2);
+        color: var(--green);
+      }
+      .status-Escalated {
+        background: rgba(139, 92, 246, 0.2);
+        color: #a78bfa;
+      }
+
+      /* ── FILTER BAR ── */
+      .filter-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      .filter-btn {
+        padding: 5px 12px;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: transparent;
+        color: var(--gray-400);
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.15s;
+      }
+      .filter-btn.active {
+        background: var(--blue);
+        color: #fff;
+        border-color: var(--blue);
+      }
+      .search-box {
+        flex: 1;
+        min-width: 180px;
+        padding: 6px 12px;
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--white);
+        font-size: 13px;
+        outline: none;
+      }
+      .search-box:focus {
+        border-color: var(--blue);
+      }
+
+      /* ── DETAIL PANEL ── */
+      #detail-panel {
+        position: fixed;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 480px;
+        background: var(--navy-mid);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        z-index: 200;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+      #detail-panel.open {
+        transform: translateX(0);
+      }
+      .panel-header {
+        padding: 18px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        background: var(--navy-mid);
+        z-index: 1;
+      }
+      .close-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: none;
+        color: var(--white);
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .close-btn:hover {
+        background: rgba(239, 68, 68, 0.3);
+      }
+      .panel-body {
+        padding: 18px 20px;
+        flex: 1;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+      .detail-item {
+        background: rgba(255, 255, 255, 0.04);
+        padding: 10px 12px;
+        border-radius: var(--radius);
+      }
+      .detail-label {
+        font-size: 10px;
+        color: var(--gray-400);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .detail-value {
+        font-size: 14px;
+        font-weight: 600;
+        margin-top: 3px;
+      }
+      .shap-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .shap-label {
+        font-size: 12px;
+        color: var(--gray-400);
+        width: 180px;
+        truncate: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .shap-track {
+        flex: 1;
+        height: 18px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+      }
+      .shap-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.4s ease;
+      }
+      .shap-pos {
+        background: linear-gradient(90deg, #ef444466, #ef4444);
+      }
+      .shap-neg {
+        background: linear-gradient(90deg, #3b82f666, #3b82f6);
+      }
+      .shap-val {
+        font-size: 11px;
+        font-family: var(--font-mono);
+        font-weight: 600;
+        width: 54px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .status-select {
+        width: 100%;
+        padding: 9px 12px;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: var(--white);
+        border-radius: var(--radius);
+        font-size: 13px;
+        outline: none;
+        cursor: pointer;
+      }
+      .status-select:focus {
+        border-color: var(--blue);
+      }
+
+      /* ── GRID LAYOUTS ── */
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .three-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+      }
+      .full-row {
+        grid-column: 1/-1;
+      }
+      .chart-wrap {
+        position: relative;
+        width: 100%;
+      }
+
+      /* ── TABLE ── */
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .data-table th {
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--gray-400);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .data-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .data-table tr:hover td {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .tier-HIGH {
+        color: var(--red);
+        font-weight: 700;
+      }
+      .tier-MEDIUM {
+        color: var(--amber);
+        font-weight: 700;
+      }
+      .tier-LOW {
+        color: var(--green);
+        font-weight: 700;
+      }
+      .tier-CLEAR {
+        color: var(--gray-400);
+      }
+
+      /* ── NETWORK GRAPH ── */
+      #network-svg {
+        width: 100%;
+        height: 420px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: var(--radius);
+      }
+      .node-provider {
+        fill: var(--blue);
+      }
+      .node-patient {
+        fill: var(--teal);
+      }
+      .node-HIGH {
+        fill: var(--red);
+      }
+      .node-MEDIUM {
+        fill: var(--amber);
+      }
+      .link {
+        stroke: rgba(255, 255, 255, 0.1);
+        stroke-width: 1;
+      }
+
+      /* ── PERFORMANCE METRICS ── */
+      .metric-ring {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+      }
+      .metric-big {
+        font-size: 32px;
+        font-weight: 700;
+      }
+      .metric-label {
+        font-size: 11px;
+        color: var(--gray-400);
+        margin-top: 4px;
+      }
+
+      /* ── LOGIN ── */
+      #login-screen {
+        position: fixed;
+        inset: 0;
+        background: var(--navy);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+      }
+      .login-box {
+        background: var(--navy-light);
+        border-radius: 12px;
+        padding: 40px;
+        width: 380px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: var(--shadow);
+      }
+      .login-logo {
+        text-align: center;
+        margin-bottom: 28px;
+      }
+      .login-logo h1 {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--white);
+      }
+      .login-logo p {
+        font-size: 12px;
+        color: var(--gray-400);
+        margin-top: 4px;
+      }
+      .form-group {
+        margin-bottom: 16px;
+      }
+      .form-group label {
+        font-size: 12px;
+        color: var(--gray-400);
+        display: block;
+        margin-bottom: 6px;
+      }
+      .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--white);
+        border-radius: var(--radius);
+        font-size: 14px;
+        outline: none;
+        transition: all 0.15s;
+      }
+      .form-control:focus {
+        border-color: var(--blue);
+        background: rgba(37, 99, 235, 0.08);
+      }
+      .login-btn {
+        width: 100%;
+        padding: 11px;
+        background: var(--blue);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius);
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+        margin-top: 8px;
+      }
+      .login-btn:hover {
+        background: var(--blue-light);
+      }
+      .login-hint {
+        font-size: 11px;
+        color: var(--gray-600);
+        margin-top: 16px;
+        text-align: center;
+      }
+      .error-msg {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: var(--red);
+        padding: 8px 12px;
+        border-radius: var(--radius);
+        font-size: 12px;
+        margin-bottom: 12px;
+        display: none;
+      }
+
+      /* ── TOAST NOTIFICATIONS ── */
+      #toast-container {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .toast {
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        font-size: 13px;
+        min-width: 260px;
+        max-width: 340px;
+        box-shadow: var(--shadow);
+        animation: toastIn 0.3s ease;
+        border-left: 4px solid;
+      }
+      .toast-high {
+        background: #1a0a0a;
+        border-color: var(--red);
+        color: var(--red);
+      }
+      .toast-medium {
+        background: #1a0f00;
+        border-color: var(--amber);
+        color: var(--amber);
+      }
+      .toast-info {
+        background: #0a1020;
+        border-color: var(--blue);
+        color: var(--blue-light);
+      }
+      @keyframes toastIn {
+        from {
+          opacity: 0;
+          transform: translateX(20px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      /* ── MISC ── */
+      .section-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--gray-600);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+      }
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--gray-600);
+      }
+      .empty-state span {
+        font-size: 36px;
+        display: block;
+        margin-bottom: 10px;
+      }
+      .badge-count {
+        background: var(--red);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 20px;
+        margin-left: 6px;
+        min-width: 18px;
+        text-align: center;
+        display: inline-block;
+      }
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-top-color: var(--white);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ══════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════ -->
+    <div id="login-screen">
+      <div class="login-box">
+        <div class="login-logo">
+          <h1>🛡️ EmpowerTech</h1>
+          <p>AI-Powered Health Insurance Fraud Detection</p>
+          <p style="color: var(--blue-light); font-size: 11px; margin-top: 4px">
+            Milestone 3 — Interactive Dashboard
+          </p>
+        </div>
+        <div class="error-msg" id="login-error">
+          Invalid credentials. Please try again.
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input
+            class="form-control"
+            type="email"
+            id="login-email"
+            placeholder="analyst@empowertech.in"
+            value="analyst@empowertech.in"
+          />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input
+            class="form-control"
+            type="password"
+            id="login-password"
+            placeholder="••••••••••"
+            value="Analyst@2025"
+          />
+        </div>
+        <button class="login-btn" onclick="doLogin()">Sign In →</button>
+        <div class="login-hint">
+          <b>Demo credentials</b><br />
+          Analyst: analyst@empowertech.in / Analyst@2025<br />
+          Admin: admin@empowertech.in / Admin@2025
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     TOAST NOTIFICATIONS
+══════════════════════════════════════════ -->
+    <div id="toast-container"></div>
+
+    <!-- ══════════════════════════════════════════
+     DETAIL PANEL (SHAP Explanation)
+══════════════════════════════════════════ -->
+    <div id="detail-panel">
+      <div class="panel-header">
+        <div>
+          <div style="font-size: 14px; font-weight: 700">
+            Claim Detail & SHAP Explanation
+          </div>
+          <div
+            style="font-size: 11px; color: var(--gray-400)"
+            id="panel-claim-id"
+          >
+            –
+          </div>
+        </div>
+        <button class="close-btn" onclick="closePanel()">✕</button>
+      </div>
+      <div class="panel-body" id="panel-content">
+        <div class="empty-state">
+          <span>🔍</span>Select an alert to view details
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════ -->
+    <div id="app" style="display: none">
+      <!-- SIDEBAR -->
+      <nav id="sidebar">
+        <div class="sidebar-logo">
+          <h1>🛡️ EmpowerTech</h1>
+          <span>Fraud Detection Dashboard</span>
+        </div>
+
+        <div class="nav-section">Main</div>
+        <div class="nav-item active" onclick="showView('alerts')">
+          <span class="nav-icon">⚡</span> Alert Feed
+          <span class="badge-count" id="high-count">0</span>
+        </div>
+        <div class="nav-item" onclick="showView('providers')">
+          <span class="nav-icon">🏥</span> Provider Analytics
+        </div>
+        <div class="nav-item" onclick="showView('network')">
+          <span class="nav-icon">🕸️</span> Network Graph
+        </div>
+
+        <div class="nav-section">Monitoring</div>
+        <div class="nav-item" onclick="showView('performance')">
+          <span class="nav-icon">📊</span> Model Performance
+        </div>
+        <div class="nav-item" onclick="showView('demo')">
+          <span class="nav-icon">🧪</span> Demo: Score Claim
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="user-pill">
+            <div class="avatar" id="user-avatar">A</div>
+            <div class="user-info">
+              <span id="user-name">Analyst</span>
+              <small id="user-role-label">Compliance Analyst</small>
+            </div>
+          </div>
+          <button
+            class="btn btn-outline btn-sm"
+            onclick="doLogout()"
+            style="margin-top: 10px; width: 100%"
+          >
+            Sign Out
+          </button>
+        </div>
+      </nav>
+
+      <!-- MAIN CONTENT -->
+      <div id="main">
+        <!-- TOPBAR -->
+        <div id="topbar">
+          <div class="topbar-left">
+            <div class="topbar-title" id="view-title">Real-Time Alert Feed</div>
+          </div>
+          <div class="topbar-right">
+            <div class="ws-indicator">
+              <div class="ws-dot" id="ws-dot"></div>
+              <span id="ws-status">Connecting…</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="loadAlerts()">
+              ↻ Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- CONTENT AREA -->
+        <div id="content">
+          <!-- ── VIEW: ALERT FEED ── -->
+          <div id="view-alerts">
+            <!-- Stat Cards -->
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div>
+                  <div class="stat-val" id="stat-total">–</div>
+                  <div class="stat-label">Total Alerts</div>
+                  <div class="stat-change up">Today</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon" style="color: var(--red)">🔴</div>
+                <div>
+                  <div
+                    class="stat-val"
+                    style="color: var(--red)"
+                    id="stat-high"
+                  >
+                    –
+                  </div>
+                  <div class="stat-label">HIGH Risk</div>
+                  <div class="stat-change up">Requires immediate action</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon" style="color: var(--amber)">🟠</div>
+                <div>
+                  <div
+                    class="stat-val"
+                    style="color: var(--amber)"
+                    id="stat-medium"
+                  >
+                    –
+                  </div>
+                  <div class="stat-label">MEDIUM Risk</div>
+                  <div class="stat-change">Under investigation</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon" style="color: var(--green)">✅</div>
+                <div>
+                  <div
+                    class="stat-val"
+                    style="color: var(--green)"
+                    id="stat-precision"
+                  >
+                    –
+                  </div>
+                  <div class="stat-label">Model Precision</div>
+                  <div class="stat-change down">Hybrid XGB+AE</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="two-col" style="margin-bottom: 16px">
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">⏱ Hourly Alert Volume</div>
+                </div>
+                <div class="card-body">
+                  <div class="chart-wrap" style="height: 160px">
+                    <canvas id="hourly-chart"></canvas>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">🥧 Alert Distribution</div>
+                </div>
+                <div
+                  class="card-body"
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 160px;
+                  "
+                >
+                  <canvas
+                    id="dist-chart"
+                    style="max-height: 150px; max-width: 200px"
+                  ></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alert Feed -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  ⚡ Real-Time Fraud Alerts
+                  <span
+                    style="
+                      font-size: 10px;
+                      color: var(--green);
+                      font-weight: 400;
+                    "
+                    id="live-label"
+                    >● LIVE</span
+                  >
+                </div>
+                <div style="display: flex; gap: 8px">
+                  <input
+                    class="search-box"
+                    style="width: 200px"
+                    placeholder="🔍 Search claim / provider…"
+                    oninput="filterAlerts(this.value)"
+                    id="alert-search"
+                  />
+                </div>
+              </div>
+              <div class="card-body" style="padding-bottom: 8px">
+                <div class="filter-bar">
+                  <button
+                    class="filter-btn active"
+                    onclick="setRiskFilter('ALL', this)"
+                  >
+                    All
+                  </button>
+                  <button
+                    class="filter-btn"
+                    onclick="setRiskFilter('HIGH', this)"
+                  >
+                    🔴 HIGH
+                  </button>
+                  <button
+                    class="filter-btn"
+                    onclick="setRiskFilter('MEDIUM', this)"
+                  >
+                    🟠 MEDIUM
+                  </button>
+                  <button
+                    class="filter-btn"
+                    onclick="setRiskFilter('New', this)"
+                  >
+                    New
+                  </button>
+                  <button
+                    class="filter-btn"
+                    onclick="setRiskFilter('Escalated', this)"
+                  >
+                    Escalated
+                  </button>
+                </div>
+                <div class="alert-feed" id="alert-feed">
+                  <div class="empty-state">
+                    <span class="spinner"></span><br />Loading alerts…
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- end view-alerts -->
+
+          <!-- ── VIEW: PROVIDERS ── -->
+          <div id="view-providers" style="display: none">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">🏥 Provider Risk Analytics</div>
+                <button
+                  class="btn btn-outline btn-sm"
+                  onclick="loadProviders()"
+                >
+                  ↻ Refresh
+                </button>
+              </div>
+              <div class="card-body">
+                <table class="data-table" id="provider-table">
+                  <thead>
+                    <tr>
+                      <th>Provider ID</th>
+                      <th>Specialty</th>
+                      <th>Total Claims</th>
+                      <th>Fraud Alerts</th>
+                      <th>Fraud Rate</th>
+                      <th>Avg. Claim (₹)</th>
+                      <th>Risk Tier</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="provider-body">
+                    <tr>
+                      <td
+                        colspan="8"
+                        style="
+                          text-align: center;
+                          padding: 30px;
+                          color: var(--gray-600);
+                        "
+                      >
+                        <span class="spinner"></span> Loading providers…
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <!-- Provider detail charts -->
+            <div
+              id="provider-detail-area"
+              style="margin-top: 16px; display: none"
+            >
+              <div class="two-col">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-title">📈 Monthly Claim Velocity</div>
+                  </div>
+                  <div class="card-body">
+                    <canvas id="velocity-chart" style="height: 180px"></canvas>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-title">
+                      🔬 ICD-CPT Mismatch Score Trend
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <canvas id="mismatch-chart" style="height: 180px"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── VIEW: NETWORK GRAPH ── -->
+          <div id="view-network" style="display: none">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  🕸️ Provider-Patient Interaction Network
+                </div>
+                <div style="font-size: 11px; color: var(--gray-400)">
+                  🔴 HIGH risk &nbsp;|&nbsp; 🟠 MEDIUM &nbsp;|&nbsp; 🔵 Provider
+                  &nbsp;|&nbsp; 🟢 Patient &nbsp;|&nbsp; Scroll to zoom · Drag
+                  to pan
+                </div>
+              </div>
+              <div class="card-body" style="padding: 8px">
+                <svg id="network-svg"></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── VIEW: PERFORMANCE ── -->
+          <div id="view-performance" style="display: none">
+            <div class="three-col" style="margin-bottom: 16px">
+              <div class="card">
+                <div class="card-body metric-ring">
+                  <div
+                    class="metric-big"
+                    style="color: var(--green)"
+                    id="perf-precision"
+                  >
+                    –
+                  </div>
+                  <div class="metric-label">Precision</div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-body metric-ring">
+                  <div
+                    class="metric-big"
+                    style="color: var(--blue-light)"
+                    id="perf-recall"
+                  >
+                    –
+                  </div>
+                  <div class="metric-label">Recall</div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-body metric-ring">
+                  <div
+                    class="metric-big"
+                    style="color: var(--teal)"
+                    id="perf-f1"
+                  >
+                    –
+                  </div>
+                  <div class="metric-label">F1-Score</div>
+                </div>
+              </div>
+            </div>
+            <div class="two-col" style="margin-bottom: 16px">
+              <div class="card">
+                <div class="card-body metric-ring">
+                  <div
+                    class="metric-big"
+                    style="color: var(--red)"
+                    id="perf-fpr"
+                  >
+                    –
+                  </div>
+                  <div class="metric-label">False Positive Rate</div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-body metric-ring">
+                  <div
+                    class="metric-big"
+                    style="color: var(--gold)"
+                    id="perf-threshold"
+                  >
+                    –
+                  </div>
+                  <div class="metric-label">
+                    Calibrated Threshold (α=0.65, β=0.35)
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">📈 24-Hour Alert Volume Trend</div>
+              </div>
+              <div class="card-body">
+                <canvas id="perf-hourly-chart" style="height: 200px"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── VIEW: DEMO ── -->
+          <div id="view-demo" style="display: none">
+            <div class="two-col">
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">🧪 Submit Test Claim for Scoring</div>
+                </div>
+                <div class="card-body">
+                  <p
+                    style="
+                      font-size: 12px;
+                      color: var(--gray-400);
+                      margin-bottom: 16px;
+                    "
+                  >
+                    Fill in claim details and click <b>Score Claim</b> to run
+                    through the Milestone 2 Hybrid XGBoost + Autoencoder
+                    pipeline in real time.
+                  </p>
+                  <div
+                    style="
+                      display: grid;
+                      grid-template-columns: 1fr 1fr;
+                      gap: 10px;
+                    "
+                  >
+                    <div class="form-group">
+                      <label style="font-size: 11px; color: var(--gray-400)"
+                        >Provider ID</label
+                      >
+                      <input
+                        class="form-control"
+                        id="d-provider"
+                        value="PRV001"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px; color: var(--gray-400)"
+                        >Claim Amount (₹)</label
+                      >
+                      <input
+                        class="form-control"
+                        id="d-amount"
+                        type="number"
+                        value="45000"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px; color: var(--gray-400)"
+                        >ICD-CPT Mismatch Score</label
+                      >
+                      <input
+                        class="form-control"
+                        id="d-mismatch"
+                        type="number"
+                        step="0.01"
+                        value="0.82"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px; color: var(--gray-400)"
+                        >Provider Velocity (claims/day)</label
+                      >
+                      <input
+                        class="form-control"
+                        id="d-velocity"
+                        type="number"
+                        value="180"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px; color: var(--gray-400)"
+                        >Amount Deviation Z-Score</label
+                      >
+                      <input
+                        class="form-control"
+                        id="d-deviation"
+                        type="number"
+                        step="0.1"
+                        value="4.2"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px; color: var(--gray-400)"
+                        >Prior Fraud Flag</label
+                      >
+                      <select class="form-control" id="d-fraud-flag">
+                        <option value="1">Yes (1)</option>
+                        <option value="0">No (0)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 10px; margin-top: 6px">
+                    <button
+                      class="btn btn-primary"
+                      onclick="scoreDemoClaim()"
+                      id="score-btn"
+                    >
+                      ⚡ Score Claim
+                    </button>
+                    <button class="btn btn-outline" onclick="loadSuspicious()">
+                      🚨 Load Suspicious Claim (M2 Demo)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Result panel -->
+              <div class="card" id="demo-result-card">
+                <div class="card-header">
+                  <div class="card-title">📋 Scoring Result</div>
+                </div>
+                <div class="card-body" id="demo-result">
+                  <div class="empty-state">
+                    <span>🧮</span>
+                    Submit a claim to see the fraud scoring result
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- end #content -->
+      </div>
+      <!-- end #main -->
+    </div>
+    <!-- end #app -->
+
+    <!-- ══════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════ -->
+    <script>
+      /* ── CONFIG ── */
+      const API = "http://localhost:8000";
+      let TOKEN = null;
+      let ROLE = null;
+      let EMAIL = null;
+      let WS = null;
+      let ALERTS = [];
+      let RISK_FILTER = "ALL";
+      let SEARCH_QUERY = "";
+      let hourlyChart = null;
+      let distChart = null;
+      let velocityChart = null;
+      let mismatchChart = null;
+      let perfChart = null;
+
+      /* ══════════════════════════════
+   AUTH
+══════════════════════════════ */
+      async function doLogin() {
+        const email = document.getElementById("login-email").value.trim();
+        const pass = document.getElementById("login-password").value.trim();
+        const errEl = document.getElementById("login-error");
+        errEl.style.display = "none";
+
+        try {
+          const form = new FormData();
+          form.append("username", email);
+          form.append("password", pass);
+          const res = await axios.post(`${API}/auth/login`, form);
+          TOKEN = res.data.access_token;
+          ROLE = res.data.role;
+          EMAIL = res.data.email;
+
+          document.getElementById("login-screen").style.display = "none";
+          document.getElementById("app").style.display = "flex";
+          document.getElementById("user-name").textContent =
+            EMAIL.split("@")[0];
+          document.getElementById("user-role-label").textContent = ROLE;
+          document.getElementById("user-avatar").textContent =
+            EMAIL[0].toUpperCase();
+
+          // Show/hide admin-only nav
+          if (ROLE !== "ADMIN" && ROLE !== "INVESTIGATOR") {
+            document
+              .querySelectorAll(".admin-only")
+              .forEach((el) => (el.style.display = "none"));
+          }
+
+          showView("alerts");
+          connectWebSocket();
+          loadAlerts();
+          loadPerformance();
+        } catch (e) {
+          errEl.style.display = "block";
+        }
+      }
+
+      function doLogout() {
+        TOKEN = null;
+        ROLE = null;
+        EMAIL = null;
+        if (WS) WS.close();
+        document.getElementById("app").style.display = "none";
+        document.getElementById("login-screen").style.display = "flex";
+      }
+
+      /* ══════════════════════════════
+   WEBSOCKET
+══════════════════════════════ */
+      function connectWebSocket() {
+        if (!TOKEN) return;
+        const wsUrl = `ws://localhost:8000/ws/alerts?token=${TOKEN}`;
+        WS = new WebSocket(wsUrl);
+
+        WS.onopen = () => {
+          document.getElementById("ws-dot").classList.add("live");
+          document.getElementById("ws-status").textContent = "Live";
+          showToast("Connected to real-time alert stream", "info");
+        };
+
+        WS.onmessage = (e) => {
+          const msg = JSON.parse(e.data);
+          if (msg.event === "new_alert") {
+            showToast(
+              `⚡ ${msg.risk_level} Alert — ${msg.claim_id} (Score: ${msg.hybrid_score})`,
+              msg.risk_level === "HIGH" ? "high" : "medium",
+            );
+            // Prepend to feed immediately
+            const pseudo = {
+              alert_id: msg.alert_id,
+              claim_id: msg.claim_id,
+              provider_id: msg.provider_id,
+              hybrid_score: msg.hybrid_score,
+              risk_level: msg.risk_level,
+              investigation_status: "New",
+              created_at: msg.timestamp,
+            };
+            ALERTS.unshift(pseudo);
+            updateHighCount();
+            renderAlerts();
+
+            // Browser notification
+            if (
+              msg.risk_level === "HIGH" &&
+              Notification.permission === "granted"
+            ) {
+              new Notification("🚨 HIGH Risk Alert", {
+                body: `Claim ${msg.claim_id} — Score: ${msg.hybrid_score}`,
+                icon: "🛡️",
+              });
+            }
+          }
+        };
+
+        WS.onclose = () => {
+          document.getElementById("ws-dot").classList.remove("live");
+          document.getElementById("ws-status").textContent = "Disconnected";
+          setTimeout(connectWebSocket, 5000); // auto-reconnect
+        };
+
+        WS.onerror = () => {
+          document.getElementById("ws-status").textContent = "Error — Retrying";
+        };
+
+        // Request notification permission
+        if (Notification.permission === "default")
+          Notification.requestPermission();
+      }
+
+      /* ══════════════════════════════
+   ALERTS
+══════════════════════════════ */
+      async function loadAlerts() {
+        try {
+          const res = await axios.get(`${API}/alerts/?limit=100`, authHeader());
+          ALERTS = res.data.items || [];
+          updateHighCount();
+          renderAlerts();
+          drawDistChart();
+
+          // Update stat cards
+          document.getElementById("stat-total").textContent =
+            res.data.total || ALERTS.length;
+          document.getElementById("stat-high").textContent = ALERTS.filter(
+            (a) => a.risk_level === "HIGH",
+          ).length;
+          document.getElementById("stat-medium").textContent = ALERTS.filter(
+            (a) => a.risk_level === "MEDIUM",
+          ).length;
+        } catch (e) {
+          console.error("loadAlerts:", e.message);
+          showToast("Failed to load alerts — check backend connection", "high");
+        }
+      }
+
+      function renderAlerts() {
+        const feed = document.getElementById("alert-feed");
+        let filtered = ALERTS.filter((a) => {
+          if (RISK_FILTER === "ALL") return true;
+          if (["HIGH", "MEDIUM", "LOW"].includes(RISK_FILTER))
+            return a.risk_level === RISK_FILTER;
+          return a.investigation_status === RISK_FILTER;
+        });
+        if (SEARCH_QUERY) {
+          const q = SEARCH_QUERY.toLowerCase();
+          filtered = filtered.filter(
+            (a) =>
+              (a.claim_id || "").toLowerCase().includes(q) ||
+              (a.provider_id || "").toLowerCase().includes(q),
+          );
+        }
+
+        if (!filtered.length) {
+          feed.innerHTML =
+            '<div class="empty-state"><span>🔍</span>No alerts match your filters</div>';
+          return;
+        }
+
+        feed.innerHTML = filtered
+          .map((a) => {
+            const score =
+              a.hybrid_score != null ? (a.hybrid_score * 100).toFixed(1) : "--";
+            const scoreCol =
+              a.risk_level === "HIGH"
+                ? "var(--red)"
+                : a.risk_level === "MEDIUM"
+                  ? "var(--amber)"
+                  : "var(--green)";
+            const timeStr = a.created_at
+              ? new Date(a.created_at).toLocaleTimeString()
+              : "–";
+            const statusCls = `status-${(a.investigation_status || "New").replace(" ", ".")}`;
+            return `
+      <div class="alert-row" onclick="openAlertDetail('${a.alert_id}')">
+        <div class="risk-badge risk-${a.risk_level}">${a.risk_level}</div>
+        <div class="alert-score" style="color:${scoreCol}">${score}%</div>
+        <div class="alert-info">
+          <div class="alert-id">🔖 ${a.claim_id || "N/A"}</div>
+          <div class="alert-meta">Provider: ${a.provider_id || "–"} · ${timeStr}</div>
+        </div>
+        <div>
+          <span class="status-chip ${statusCls}">${a.investigation_status || "New"}</span>
+        </div>
+        <div style="color:var(--gray-400);font-size:18px;">›</div>
+      </div>`;
+          })
+          .join("");
+      }
+
+      function setRiskFilter(f, btn) {
+        RISK_FILTER = f;
+        document
+          .querySelectorAll(".filter-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderAlerts();
+      }
+
+      function filterAlerts(q) {
+        SEARCH_QUERY = q;
+        renderAlerts();
+      }
+
+      function updateHighCount() {
+        const n = ALERTS.filter(
+          (a) => a.risk_level === "HIGH" && a.investigation_status === "New",
+        ).length;
+        document.getElementById("high-count").textContent = n;
+      }
+
+      /* ══════════════════════════════
+   ALERT DETAIL PANEL
+══════════════════════════════ */
+      async function openAlertDetail(alertId) {
+        document.getElementById("detail-panel").classList.add("open");
+        document.getElementById("panel-claim-id").textContent = alertId;
+        document.getElementById("panel-content").innerHTML =
+          '<div style="text-align:center;padding:40px;"><span class="spinner"></span></div>';
+
+        try {
+          const res = await axios.get(`${API}/alerts/${alertId}`, authHeader());
+          const a = res.data;
+          renderDetailPanel(a);
+        } catch (e) {
+          document.getElementById("panel-content").innerHTML =
+            '<div class="empty-state"><span>❌</span>Failed to load alert detail</div>';
+        }
+      }
+
+      function renderDetailPanel(a) {
+        const shap = a.shap_values || {};
+        const score = ((a.hybrid_score || 0) * 100).toFixed(2);
+        const colr =
+          a.risk_level === "HIGH"
+            ? "var(--red)"
+            : a.risk_level === "MEDIUM"
+              ? "var(--amber)"
+              : "var(--green)";
+
+        // SHAP bars
+        const maxShap = Math.max(...Object.values(shap).map(Math.abs), 0.01);
+        const shapHtml = Object.entries(shap)
+          .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+          .map(([feat, val]) => {
+            const pct = (Math.abs(val) / maxShap) * 100;
+            const cls = val >= 0 ? "shap-pos" : "shap-neg";
+            const col = val >= 0 ? "var(--red)" : "var(--blue-light)";
+            const sign = val >= 0 ? "+" : "";
+            return `
+        <div class="shap-bar">
+          <div class="shap-label" title="${feat}">${feat}</div>
+          <div class="shap-track">
+            <div class="shap-fill ${cls}" style="width:${pct.toFixed(1)}%"></div>
+          </div>
+          <div class="shap-val" style="color:${col}">${sign}${val.toFixed(4)}</div>
+        </div>`;
+          })
+          .join("");
+
+        document.getElementById("panel-content").innerHTML = `
+    <!-- Score summary -->
+    <div style="text-align:center;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:16px;">
+      <div style="font-size:48px;font-weight:800;color:${colr}">${score}%</div>
+      <div class="risk-badge risk-${a.risk_level}" style="display:inline-block;margin-top:6px;">${a.risk_level} RISK</div>
+    </div>
+
+    <!-- Score breakdown -->
+    <div class="section-title">Score Breakdown</div>
+    <div class="detail-grid" style="margin-bottom:18px;">
+      <div class="detail-item">
+        <div class="detail-label">XGBoost Score</div>
+        <div class="detail-value" style="color:var(--blue-light)">${((a.xgb_score || 0) * 100).toFixed(2)}%</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Autoencoder Score</div>
+        <div class="detail-value" style="color:var(--teal)">${((a.ae_score || 0) * 100).toFixed(2)}%</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Claim ID</div>
+        <div class="detail-value" style="font-family:var(--font-mono);font-size:12px">${a.claim_id || "–"}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Provider ID</div>
+        <div class="detail-value">${a.provider_id || "–"}</div>
+      </div>
+    </div>
+
+    <!-- SHAP Explanation -->
+    <div class="section-title">SHAP Feature Attribution</div>
+    <div style="margin-bottom:6px;font-size:11px;color:var(--gray-400);">
+      🔴 Fraud-increasing &nbsp;|&nbsp; 🔵 Fraud-decreasing
+    </div>
+    <div style="margin-bottom:18px;">
+      ${shapHtml || '<div style="color:var(--gray-600);font-size:12px;">SHAP data not available</div>'}
+    </div>
+
+    <!-- Investigation Status -->
+    <div class="section-title">Investigation Action</div>
+    <div style="margin-bottom:10px;">
+      <select class="status-select" id="status-select-${a.alert_id}">
+        <option value="New"            ${a.investigation_status === "New" ? "selected" : ""}>New</option>
+        <option value="In Review"      ${a.investigation_status === "In Review" ? "selected" : ""}>In Review</option>
+        <option value="Confirmed Fraud"${a.investigation_status === "Confirmed Fraud" ? "selected" : ""}>Confirmed Fraud</option>
+        <option value="False Positive" ${a.investigation_status === "False Positive" ? "selected" : ""}>False Positive</option>
+        <option value="Escalated"      ${a.investigation_status === "Escalated" ? "selected" : ""}>Escalated</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" style="flex:1;"
+        onclick="updateStatus('${a.alert_id}')">💾 Update Status</button>
+      <button class="btn btn-danger btn-sm"
+        onclick="escalateAlert('${a.alert_id}')">🚨 Escalate</button>
+    </div>
+  `;
+      }
+
+      async function updateStatus(alertId) {
+        const sel = document.getElementById(`status-select-${alertId}`);
+        if (!sel) return;
+        try {
+          await axios.patch(
+            `${API}/alerts/${alertId}/status`,
+            { status: sel.value, notes: "" },
+            authHeader(),
+          );
+          showToast(`Status updated to "${sel.value}"`, "info");
+          loadAlerts();
+        } catch (e) {
+          showToast("Status update failed", "high");
+        }
+      }
+
+      async function escalateAlert(alertId) {
+        try {
+          await axios.post(
+            `${API}/alerts/${alertId}/escalate`,
+            {},
+            authHeader(),
+          );
+          showToast("Alert escalated to Senior Investigator", "medium");
+          closePanel();
+          loadAlerts();
+        } catch (e) {
+          showToast("Escalation failed", "high");
+        }
+      }
+
+      function closePanel() {
+        document.getElementById("detail-panel").classList.remove("open");
+      }
+
+      /* ══════════════════════════════
+   PROVIDERS
+══════════════════════════════ */
+      async function loadProviders() {
+        try {
+          const res = await axios.get(`${API}/providers/`, authHeader());
+          const tbody = document.getElementById("provider-body");
+          tbody.innerHTML = res.data
+            .map(
+              (p) => `
+      <tr>
+        <td><b style="font-family:var(--font-mono)">${p.provider_id}</b></td>
+        <td>${p.specialty}</td>
+        <td>${(p.total_claims || 0).toLocaleString()}</td>
+        <td>${p.fraud_alert_count || 0}</td>
+        <td style="font-weight:700;">${((p.fraud_rate || 0) * 100).toFixed(1)}%</td>
+        <td>₹${(p.avg_claim_amount || 0).toLocaleString()}</td>
+        <td class="tier-${p.risk_tier}">${p.risk_tier}</td>
+        <td>
+          <button class="btn btn-outline btn-sm"
+            onclick="loadProviderDetail('${p.provider_id}')">View →</button>
+        </td>
+      </tr>`,
+            )
+            .join("");
+        } catch (e) {
+          showToast("Failed to load providers", "high");
+        }
+      }
+
+      async function loadProviderDetail(providerId) {
+        try {
+          const res = await axios.get(
+            `${API}/providers/${providerId}`,
+            authHeader(),
+          );
+          const trend = res.data.monthly_trend || [];
+          document.getElementById("provider-detail-area").style.display =
+            "block";
+          drawVelocityChart(trend);
+          drawMismatchChart(trend);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      /* ══════════════════════════════
+   NETWORK GRAPH
+══════════════════════════════ */
+      async function loadNetwork() {
+        try {
+          const res = await axios.get(`${API}/providers/network`, authHeader());
+          drawNetworkGraph(res.data.nodes, res.data.edges);
+        } catch (e) {
+          // Investigator+ only
+          document.getElementById("network-svg").innerHTML =
+            '<text x="50%" y="50%" fill="#475569" text-anchor="middle" font-size="14">' +
+            "Requires Investigator role or above</text>";
+        }
+      }
+
+      function drawNetworkGraph(nodes, edges) {
+        const svg = d3.select("#network-svg");
+        const W = document.getElementById("network-svg").clientWidth || 800;
+        const H = 420;
+        svg.selectAll("*").remove();
+        svg.attr("width", W).attr("height", H);
+
+        const g = svg.append("g");
+        const zoom = d3
+          .zoom()
+          .scaleExtent([0.3, 4])
+          .on("zoom", (e) => g.attr("transform", e.transform));
+        svg.call(zoom);
+
+        const sim = d3
+          .forceSimulation(nodes)
+          .force(
+            "link",
+            d3
+              .forceLink(edges)
+              .id((d) => d.id)
+              .distance(60),
+          )
+          .force("charge", d3.forceManyBody().strength(-80))
+          .force("center", d3.forceCenter(W / 2, H / 2))
+          .force("collide", d3.forceCollide(18));
+
+        const link = g
+          .append("g")
+          .selectAll("line")
+          .data(edges)
+          .join("line")
+          .attr("class", "link");
+
+        const nodeG = g
+          .append("g")
+          .selectAll("g")
+          .data(nodes)
+          .join("g")
+          .call(
+            d3
+              .drag()
+              .on("start", (e, d) => {
+                if (!e.active) sim.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+              })
+              .on("drag", (e, d) => {
+                d.fx = e.x;
+                d.fy = e.y;
+              })
+              .on("end", (e, d) => {
+                if (!e.active) sim.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+              }),
+          );
+
+        nodeG
+          .append("circle")
+          .attr("r", (d) => (d.type === "provider" ? 14 : 7))
+          .attr("fill", (d) => {
+            if (d.type === "patient") return "#0D9488";
+            if (d.risk_tier === "HIGH") return "#EF4444";
+            if (d.risk_tier === "MEDIUM") return "#F97316";
+            return "#2563EB";
+          })
+          .attr("stroke", "rgba(255,255,255,0.2)")
+          .attr("stroke-width", 1.5);
+
+        nodeG
+          .append("text")
+          .attr("dy", "0.35em")
+          .attr("x", (d) => (d.type === "provider" ? 18 : 10))
+          .style("fill", "#94A3B8")
+          .style("font-size", (d) => (d.type === "provider" ? "11px" : "8px"))
+          .text((d) => (d.type === "provider" ? d.id : ""));
+
+        sim.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+          nodeG.attr("transform", (d) => `translate(${d.x},${d.y})`);
+        });
+      }
+
+      /* ══════════════════════════════
+   PERFORMANCE
+══════════════════════════════ */
+      async function loadPerformance() {
+        try {
+          const res = await axios.get(
+            `${API}/metrics/performance`,
+            authHeader(),
+          );
+          const data = res.data;
+          const fmt = (v) => (v * 100).toFixed(2) + "%";
+          document.getElementById("perf-precision").textContent = fmt(
+            data.precision || 0,
+          );
+          document.getElementById("perf-recall").textContent = fmt(
+            data.recall || 0,
+          );
+          document.getElementById("perf-f1").textContent = fmt(
+            data.f1_score || 0,
+          );
+          document.getElementById("perf-fpr").textContent = fmt(data.fpr || 0);
+          document.getElementById("perf-threshold").textContent = (
+            data.threshold || 0
+          ).toFixed(4);
+          document.getElementById("stat-precision").textContent = fmt(
+            data.precision || 0,
+          );
+
+          const trend = data.hourly_trend || [];
+          drawPerfChart(trend);
+          drawHourlyChart(trend);
+        } catch (e) {
+          // Non-admin users can still see stat card precision from alerts endpoint
+        }
+      }
+
+      /* ══════════════════════════════
+   DEMO CLAIM SCORING
+══════════════════════════════ */
+      function loadSuspicious() {
+        document.getElementById("d-provider").value = "PRV001";
+        document.getElementById("d-amount").value = "45000";
+        document.getElementById("d-mismatch").value = "0.82";
+        document.getElementById("d-velocity").value = "180";
+        document.getElementById("d-deviation").value = "4.2";
+        document.getElementById("d-fraud-flag").value = "1";
+      }
+
+      async function scoreDemoClaim() {
+        const btn = document.getElementById("score-btn");
+        btn.innerHTML = '<span class="spinner"></span> Scoring…';
+        btn.disabled = true;
+        const result = document.getElementById("demo-result");
+
+        try {
+          const payload = {
+            provider_id: document.getElementById("d-provider").value,
+            patient_id: "PAT-DEMO-001",
+            claim_amount: parseFloat(document.getElementById("d-amount").value),
+            icd_cpt_mismatch: parseFloat(
+              document.getElementById("d-mismatch").value,
+            ),
+            provider_velocity: parseFloat(
+              document.getElementById("d-velocity").value,
+            ),
+            amount_deviation_z: parseFloat(
+              document.getElementById("d-deviation").value,
+            ),
+            prev_fraud_flag: parseInt(
+              document.getElementById("d-fraud-flag").value,
+            ),
+            weekend_submission: 1,
+            round_amount_flag: 1,
+            claims_per_month: 80,
+            unique_patients: 15,
+            dataset_source: "DEMO",
+          };
+
+          const res = await axios.post(`${API}/claims`, payload, authHeader());
+          const fr = res.data.fraud_result;
+          const colr =
+            fr.risk_level === "HIGH"
+              ? "var(--red)"
+              : fr.risk_level === "MEDIUM"
+                ? "var(--amber)"
+                : "var(--green)";
+          const maxS = Math.max(
+            ...Object.values(fr.shap_values || {}).map(Math.abs),
+            0.01,
+          );
+
+          const shapRows = Object.entries(fr.shap_values || {})
+            .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+            .map(([f, v]) => {
+              const pct = (Math.abs(v) / maxS) * 100;
+              const cls = v >= 0 ? "shap-pos" : "shap-neg";
+              const col = v >= 0 ? "var(--red)" : "var(--blue-light)";
+              return `<div class="shap-bar">
+          <div class="shap-label" style="font-size:11px;">${f}</div>
+          <div class="shap-track"><div class="shap-fill ${cls}" style="width:${pct.toFixed(1)}%"></div></div>
+          <div class="shap-val" style="color:${col}">${v >= 0 ? "+" : ""}${v.toFixed(4)}</div>
+        </div>`;
+            })
+            .join("");
+
+          result.innerHTML = `
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="font-size:40px;font-weight:800;color:${colr}">
+          ${(fr.hybrid_score * 100).toFixed(2)}%
+        </div>
+        <div class="risk-badge risk-${fr.risk_level}" style="display:inline-block;margin-top:6px;">
+          ⚠ ${fr.risk_level} RISK — ${fr.risk_level === "HIGH" ? "FRAUD DETECTED" : "REVIEW REQUIRED"}
+        </div>
+      </div>
+      <div class="detail-grid" style="margin-bottom:14px;">
+        <div class="detail-item">
+          <div class="detail-label">XGBoost</div>
+          <div class="detail-value" style="color:var(--blue-light)">${(fr.xgb_score * 100).toFixed(2)}%</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Autoencoder</div>
+          <div class="detail-value" style="color:var(--teal)">${(fr.ae_score * 100).toFixed(2)}%</div>
+        </div>
+      </div>
+      <div class="section-title">Top SHAP Features</div>
+      ${shapRows}
+      <div style="font-size:11px;color:var(--gray-600);margin-top:12px;">
+        Alert ID: ${res.data.alert_id || "No alert (LOW risk)"}
+      </div>`;
+
+          showToast(
+            `Claim scored: ${fr.risk_level} risk (${(fr.hybrid_score * 100).toFixed(1)}%)`,
+            fr.risk_level === "HIGH" ? "high" : "medium",
+          );
+        } catch (e) {
+          result.innerHTML = `<div class="empty-state"><span>❌</span>
+      Scoring failed. Ensure the backend is running.<br>
+      <small style="color:var(--gray-600)">${e.message}</small></div>`;
+        }
+
+        btn.innerHTML = "⚡ Score Claim";
+        btn.disabled = false;
+      }
+
+      /* ══════════════════════════════
+   CHARTS
+══════════════════════════════ */
+      const chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#94A3B8", font: { size: 11 } } },
+        },
+        scales: {
+          x: {
+            ticks: { color: "#475569", font: { size: 10 } },
+            grid: { color: "rgba(255,255,255,0.04)" },
+          },
+          y: {
+            ticks: { color: "#475569", font: { size: 10 } },
+            grid: { color: "rgba(255,255,255,0.06)" },
+          },
+        },
+      };
+
+      function drawHourlyChart(trend) {
+        const ctx = document.getElementById("hourly-chart");
+        if (!ctx) return;
+        if (hourlyChart) hourlyChart.destroy();
+        hourlyChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: trend.map((t) => t.hour),
+            datasets: [
+              {
+                label: "Alerts",
+                data: trend.map((t) => t.alerts),
+                backgroundColor: "rgba(37,99,235,0.6)",
+                borderColor: "#2563EB",
+                borderWidth: 1,
+                borderRadius: 3,
+              },
+            ],
+          },
+          options: {
+            ...chartDefaults,
+            plugins: { legend: { display: false } },
+          },
+        });
+      }
+
+      function drawDistChart() {
+        const ctx = document.getElementById("dist-chart");
+        if (!ctx) return;
+        const high = ALERTS.filter((a) => a.risk_level === "HIGH").length;
+        const med = ALERTS.filter((a) => a.risk_level === "MEDIUM").length;
+        const low = ALERTS.filter((a) => a.risk_level === "LOW").length;
+        if (distChart) distChart.destroy();
+        distChart = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: ["HIGH", "MEDIUM", "LOW"],
+            datasets: [
+              {
+                data: [high, med, low],
+                backgroundColor: [
+                  "rgba(239,68,68,0.8)",
+                  "rgba(249,115,22,0.8)",
+                  "rgba(16,185,129,0.8)",
+                ],
+                borderColor: ["#EF4444", "#F97316", "#10B981"],
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "right",
+                labels: { color: "#94A3B8", font: { size: 11 } },
+              },
+            },
+          },
+        });
+      }
+
+      function drawVelocityChart(trend) {
+        const ctx = document.getElementById("velocity-chart");
+        if (!ctx) return;
+        if (velocityChart) velocityChart.destroy();
+        velocityChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: trend.map((t) => t.month),
+            datasets: [
+              {
+                label: "Monthly Claims",
+                data: trend.map((t) => t.claims),
+                borderColor: "#2563EB",
+                backgroundColor: "rgba(37,99,235,0.1)",
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+              },
+            ],
+          },
+          options: { ...chartDefaults },
+        });
+      }
+
+      function drawMismatchChart(trend) {
+        const ctx = document.getElementById("mismatch-chart");
+        if (!ctx) return;
+        if (mismatchChart) mismatchChart.destroy();
+        mismatchChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: trend.map((t) => t.month),
+            datasets: [
+              {
+                label: "ICD-CPT Mismatch Score",
+                data: trend.map((t) => t.mismatch_score),
+                backgroundColor: trend.map((t) =>
+                  t.mismatch_score > 0.4
+                    ? "rgba(239,68,68,0.7)"
+                    : "rgba(37,99,235,0.6)",
+                ),
+                borderRadius: 3,
+              },
+            ],
+          },
+          options: { ...chartDefaults },
+        });
+      }
+
+      function drawPerfChart(trend) {
+        const ctx = document.getElementById("perf-hourly-chart");
+        if (!ctx) return;
+        if (perfChart) perfChart.destroy();
+        perfChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: trend.map((t) => t.hour),
+            datasets: [
+              {
+                label: "Alerts/Hour",
+                data: trend.map((t) => t.alerts),
+                borderColor: "#10B981",
+                backgroundColor: "rgba(16,185,129,0.1)",
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2,
+              },
+            ],
+          },
+          options: { ...chartDefaults },
+        });
+      }
+
+      /* ══════════════════════════════
+   VIEW ROUTING
+══════════════════════════════ */
+      const VIEWS = {
+        alerts: { el: "view-alerts", title: "Real-Time Alert Feed", nav: 0 },
+        providers: {
+          el: "view-providers",
+          title: "Provider Analytics",
+          nav: 1,
+        },
+        network: {
+          el: "view-network",
+          title: "Provider Network Graph",
+          nav: 2,
+        },
+        performance: {
+          el: "view-performance",
+          title: "Model Performance Monitor",
+          nav: 3,
+        },
+        demo: { el: "view-demo", title: "Demo: Score a Claim", nav: 4 },
+      };
+
+      function showView(name) {
+        Object.keys(VIEWS).forEach((k) => {
+          document.getElementById(VIEWS[k].el).style.display =
+            k === name ? "block" : "none";
+        });
+        document.querySelectorAll(".nav-item").forEach((el, i) => {
+          el.classList.toggle("active", i === VIEWS[name].nav);
+        });
+        document.getElementById("view-title").textContent = VIEWS[name].title;
+
+        // Lazy load on view
+        if (name === "providers") loadProviders();
+        if (name === "network") loadNetwork();
+        if (name === "performance") loadPerformance();
+      }
+
+      /* ══════════════════════════════
+   TOASTS
+══════════════════════════════ */
+      function showToast(msg, type = "info") {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${type}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transition = "opacity 0.4s";
+          setTimeout(() => toast.remove(), 400);
+        }, 4000);
+      }
+
+      /* ══════════════════════════════
+   AUTH HEADER HELPER
+══════════════════════════════ */
+      function authHeader() {
+        return { headers: { Authorization: `Bearer ${TOKEN}` } };
+      }
+
+      /* ══════════════════════════════
+   KEYBOARD & INIT
+══════════════════════════════ */
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closePanel();
+      });
+
+      document
+        .getElementById("login-password")
+        .addEventListener("keydown", (e) => {
+          if (e.key === "Enter") doLogin();
+        });
+    </script>
+  </body>
+</html>

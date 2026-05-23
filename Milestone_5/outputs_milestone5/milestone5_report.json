@@ -1,0 +1,144 @@
+{
+  "timestamp": "2026-05-23T15:04:46.642680",
+  "system_info": {
+    "os": "Darwin",
+    "python": "3.12.2",
+    "cpu_cores": 8,
+    "ram_gb": 17.2
+  },
+  "final_model_metrics": {
+    "precision": 1.0,
+    "recall": 0.9992,
+    "f1": 0.9996,
+    "auc_roc": 1.0,
+    "avg_prec": 1.0,
+    "mcc": 0.9996,
+    "fpr": 0.0,
+    "tp": 1199,
+    "fp": 0,
+    "fn": 1,
+    "tn": 28800
+  },
+  "latency_results": {
+    "1": {
+      "mean_total_ms": 88.19,
+      "p95_total_ms": 113.32,
+      "min_ms": 77.05,
+      "max_ms": 120.24,
+      "ms_per_claim": 88.186,
+      "claims_per_sec": 11.3,
+      "budget_ok": false
+    },
+    "10": {
+      "mean_total_ms": 79.24,
+      "p95_total_ms": 83.2,
+      "min_ms": 75.71,
+      "max_ms": 83.71,
+      "ms_per_claim": 7.924,
+      "claims_per_sec": 126.2,
+      "budget_ok": true
+    },
+    "50": {
+      "mean_total_ms": 89.32,
+      "p95_total_ms": 107.51,
+      "min_ms": 78.62,
+      "max_ms": 112.46,
+      "ms_per_claim": 1.786,
+      "claims_per_sec": 559.8,
+      "budget_ok": true
+    },
+    "100": {
+      "mean_total_ms": 85.29,
+      "p95_total_ms": 90.04,
+      "min_ms": 80.17,
+      "max_ms": 91.28,
+      "ms_per_claim": 0.853,
+      "claims_per_sec": 1172.4,
+      "budget_ok": true
+    },
+    "500": {
+      "mean_total_ms": 99.28,
+      "p95_total_ms": 102.41,
+      "min_ms": 95.93,
+      "max_ms": 103.11,
+      "ms_per_claim": 0.199,
+      "claims_per_sec": 5036.1,
+      "budget_ok": true
+    },
+    "1000": {
+      "mean_total_ms": 115.92,
+      "p95_total_ms": 122.33,
+      "min_ms": 113.07,
+      "max_ms": 124.2,
+      "ms_per_claim": 0.116,
+      "claims_per_sec": 8626.5,
+      "budget_ok": true
+    },
+    "5000": {
+      "mean_total_ms": 240.84,
+      "p95_total_ms": 252.7,
+      "min_ms": 234.76,
+      "max_ms": 256.23,
+      "ms_per_claim": 0.048,
+      "claims_per_sec": 20760.5,
+      "budget_ok": true
+    },
+    "10000": {
+      "mean_total_ms": 386.96,
+      "p95_total_ms": 409.25,
+      "min_ms": 376.39,
+      "max_ms": 416.04,
+      "ms_per_claim": 0.039,
+      "claims_per_sec": 25842.2,
+      "budget_ok": true
+    }
+  },
+  "memory_results": {
+    "model_load_ram_mb": 272.8,
+    "xgb_infer_peak_mb": 0.02,
+    "ae_infer_peak_mb": 0.67,
+    "hybrid_infer_peak_mb": 0.68,
+    "cpu_percent": 8.3,
+    "ram_available_gb": 5.95,
+    "ram_total_gb": 17.18
+  },
+  "reliability": {
+    "f1_mean": 1.0,
+    "f1_std": 0.0,
+    "consistency_pct": 100.0
+  },
+  "concurrent_users": {
+    "1": {
+      "total_elapsed_ms": 93.83,
+      "avg_user_ms": 92.89,
+      "ms_per_claim": 0.929,
+      "budget_ok": true
+    },
+    "5": {
+      "total_elapsed_ms": 202.79,
+      "avg_user_ms": 195.14,
+      "ms_per_claim": 1.951,
+      "budget_ok": true
+    },
+    "10": {
+      "total_elapsed_ms": 622.63,
+      "avg_user_ms": 558.57,
+      "ms_per_claim": 5.586,
+      "budget_ok": true
+    },
+    "25": {
+      "total_elapsed_ms": 1748.78,
+      "avg_user_ms": 1323.71,
+      "ms_per_claim": 13.237,
+      "budget_ok": true
+    },
+    "50": {
+      "total_elapsed_ms": 3288.7,
+      "avg_user_ms": 2284.94,
+      "ms_per_claim": 22.849,
+      "budget_ok": true
+    }
+  },
+  "readiness_score_pct": 94.1,
+  "objectives_achieved": "24/24"
+}
